@@ -6,14 +6,19 @@
 import { type Request, type Response, type NextFunction } from 'express'
 import { MemoryModel } from '../models/memory'
 import { type ProductModel } from '../models/product'
-
 import challengeUtils = require('../lib/challengeUtils')
 const security = require('../lib/insecurity')
 const db = require('../data/mongodb')
 const challenges = require('../data/datacache').challenges
+import rateLimit from 'express-rate-limit'
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
+});
 
 module.exports = function dataExport () {
-  return async (req: Request, res: Response, next: NextFunction) => {
+  return [limiter, async (req: Request, res: Response, next: NextFunction) => {
     const loggedInUser = security.authenticatedUsers.get(req.headers?.authorization?.replace('Bearer ', ''))
     if (loggedInUser?.data?.email && loggedInUser.data.id) {
       const username = loggedInUser.data.username
@@ -111,5 +116,5 @@ module.exports = function dataExport () {
     } else {
       next(new Error('Blocked illegal activity by ' + req.socket.remoteAddress))
     }
-  }
+  }]
 }

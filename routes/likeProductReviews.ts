@@ -6,13 +6,19 @@
 import challengeUtils = require('../lib/challengeUtils')
 import { type Request, type Response, type NextFunction } from 'express'
 import { type Review } from '../data/types'
+import rateLimit = require('express-rate-limit')
 
 const challenges = require('../data/datacache').challenges
 const db = require('../data/mongodb')
 const security = require('../lib/insecurity')
 
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
+});
+
 module.exports = function productReviews () {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return limiter, (req: Request, res: Response, next: NextFunction) => {
     const id = req.body.id
     const user = security.authenticatedUsers.from(req)
     db.reviews.findOne({ _id: id }).then((review: Review) => {

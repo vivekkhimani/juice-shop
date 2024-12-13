@@ -5,6 +5,7 @@
 
 import fs = require('fs')
 import { type Request, type Response, type NextFunction } from 'express'
+import rateLimit = require('express-rate-limit')
 
 import { UserModel } from '../models/user'
 import challengeUtils = require('../lib/challengeUtils')
@@ -17,8 +18,13 @@ const themes = require('../views/themes/themes').themes
 const Entities = require('html-entities').AllHtmlEntities
 const entities = new Entities()
 
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
+})
+
 module.exports = function getUserProfile () {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return limiter, (req: Request, res: Response, next: NextFunction) => {
     fs.readFile('views/userProfile.pug', function (err, buf) {
       if (err != null) throw err
       const loggedInUser = security.authenticatedUsers.get(req.cookies.token)
@@ -71,8 +77,8 @@ module.exports = function getUserProfile () {
       }
     })
   }
+}
 
-  function favicon () {
-    return utils.extractFilename(config.get('application.favicon'))
-  }
+function favicon () {
+  return utils.extractFilename(config.get('application.favicon'))
 }

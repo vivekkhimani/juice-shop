@@ -6,13 +6,18 @@
 import path = require('path')
 import { type Request, type Response, type NextFunction } from 'express'
 import challengeUtils = require('../lib/challengeUtils')
-
 import * as utils from '../lib/utils'
 const security = require('../lib/insecurity')
 const challenges = require('../data/datacache').challenges
+import rateLimit = require('express-rate-limit')
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
+})
 
 module.exports = function servePublicFiles () {
-  return ({ params, query }: Request, res: Response, next: NextFunction) => {
+  return limiter, ({ params, query }: Request, res: Response, next: NextFunction) => {
     const file = params.file
 
     if (!file.includes('/')) {
@@ -22,34 +27,34 @@ module.exports = function servePublicFiles () {
       next(new Error('File names cannot contain forward slashes!'))
     }
   }
+}
 
-  function verify (file: string, res: Response, next: NextFunction) {
-    if (file && (endsWithAllowlistedFileType(file) || (file === 'incident-support.kdbx'))) {
-      file = security.cutOffPoisonNullByte(file)
+function verify (file: string, res: Response, next: NextFunction) {
+  if (file && (endsWithAllowlistedFileType(file) || (file === 'incident-support.kdbx'))) {
+    file = security.cutOffPoisonNullByte(file)
 
-      challengeUtils.solveIf(challenges.directoryListingChallenge, () => { return file.toLowerCase() === 'acquisitions.md' })
-      verifySuccessfulPoisonNullByteExploit(file)
+    challengeUtils.solveIf(challenges.directoryListingChallenge, () => { return file.toLowerCase() === 'acquisitions.md' })
+    verifySuccessfulPoisonNullByteExploit(file)
 
-      res.sendFile(path.resolve('ftp/', file))
-    } else {
-      res.status(403)
-      next(new Error('Only .md and .pdf files are allowed!'))
-    }
+    res.sendFile(path.resolve('ftp/', file))
+  } else {
+    res.status(403)
+    next(new Error('Only .md and .pdf files are allowed!'))
   }
+}
 
-  function verifySuccessfulPoisonNullByteExploit (file: string) {
-    challengeUtils.solveIf(challenges.easterEggLevelOneChallenge, () => { return file.toLowerCase() === 'eastere.gg' })
-    challengeUtils.solveIf(challenges.forgottenDevBackupChallenge, () => { return file.toLowerCase() === 'package.json.bak' })
-    challengeUtils.solveIf(challenges.forgottenBackupChallenge, () => { return file.toLowerCase() === 'coupons_2013.md.bak' })
-    challengeUtils.solveIf(challenges.misplacedSignatureFileChallenge, () => { return file.toLowerCase() === 'suspicious_errors.yml' })
+function verifySuccessfulPoisonNullByteExploit (file: string) {
+  challengeUtils.solveIf(challenges.easterEggLevelOneChallenge, () => { return file.toLowerCase() === 'eastere.gg' })
+  challengeUtils.solveIf(challenges.forgottenDevBackupChallenge, () => { return file.toLowerCase() === 'package.json.bak' })
+  challengeUtils.solveIf(challenges.forgottenBackupChallenge, () => { return file.toLowerCase() === 'coupons_2013.md.bak' })
+  challengeUtils.solveIf(challenges.misplacedSignatureFileChallenge, () => { return file.toLowerCase() === 'suspicious_errors.yml' })
 
-    challengeUtils.solveIf(challenges.nullByteChallenge, () => {
-      return challenges.easterEggLevelOneChallenge.solved || challenges.forgottenDevBackupChallenge.solved || challenges.forgottenBackupChallenge.solved ||
-        challenges.misplacedSignatureFileChallenge.solved || file.toLowerCase() === 'encrypt.pyc'
-    })
-  }
+  challengeUtils.solveIf(challenges.nullByteChallenge, () => {
+    return challenges.easterEggLevelOneChallenge.solved || challenges.forgottenDevBackupChallenge.solved || challenges.forgottenBackupChallenge.solved ||
+      challenges.misplacedSignatureFileChallenge.solved || file.toLowerCase() === 'encrypt.pyc'
+  })
+}
 
-  function endsWithAllowlistedFileType (param: string) {
-    return utils.endsWith(param, '.md') || utils.endsWith(param, '.pdf')
-  }
+function endsWithAllowlistedFileType (param: string) {
+  return utils.endsWith(param, '.md') || utils.endsWith(param, '.pdf')
 }

@@ -4,13 +4,19 @@
  */
 
 import { type Request, type Response, type NextFunction } from 'express'
+import rateLimit from 'express-rate-limit'
 
 const orders = require('../data/mongodb').orders
 
 const security = require('../lib/insecurity')
 
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
+});
+
 module.exports.orderHistory = function orderHistory () {
-  return async (req: Request, res: Response, next: NextFunction) => {
+  return [limiter, async (req: Request, res: Response, next: NextFunction) => {
     const loggedInUser = security.authenticatedUsers.get(req.headers?.authorization?.replace('Bearer ', ''))
     if (loggedInUser?.data?.email && loggedInUser.data.id) {
       const email = loggedInUser.data.email
@@ -20,21 +26,21 @@ module.exports.orderHistory = function orderHistory () {
     } else {
       next(new Error('Blocked illegal activity by ' + req.socket.remoteAddress))
     }
-  }
+  }]
 }
 
 module.exports.allOrders = function allOrders () {
-  return async (req: Request, res: Response, next: NextFunction) => {
+  return [limiter, async (req: Request, res: Response, next: NextFunction) => {
     const order = await orders.find()
     res.status(200).json({ status: 'success', data: order.reverse() })
-  }
+  }]
 }
 
 module.exports.toggleDeliveryStatus = function toggleDeliveryStatus () {
-  return async (req: Request, res: Response, next: NextFunction) => {
+  return [limiter, async (req: Request, res: Response, next: NextFunction) => {
     const deliveryStatus = !req.body.deliveryStatus
     const eta = deliveryStatus ? '0' : '1'
     await orders.update({ _id: req.params.id }, { $set: { delivered: deliveryStatus, eta } })
     res.status(200).json({ status: 'success' })
-  }
+  }]
 }

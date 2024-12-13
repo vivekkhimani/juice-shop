@@ -6,12 +6,18 @@
 import utils = require('../lib/utils')
 import challengeUtils = require('../lib/challengeUtils')
 import { type Request, type Response } from 'express'
+import rateLimit = require('express-rate-limit')
 
 const challenges = require('../data/datacache').challenges
 const db = require('../data/mongodb')
 
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
+})
+
 module.exports = function trackOrder () {
-  return (req: Request, res: Response) => {
+  return [limiter, (req: Request, res: Response) => {
     const id = utils.disableOnContainerEnv() ? String(req.params.id).replace(/[^\w-]+/g, '') : req.params.id
 
     challengeUtils.solveIf(challenges.reflectedXssChallenge, () => { return utils.contains(id, '<iframe src="javascript:alert(`xss`)">') })
@@ -25,5 +31,5 @@ module.exports = function trackOrder () {
     }, () => {
       res.status(400).json({ error: 'Wrong Param' })
     })
-  }
+  }]
 }

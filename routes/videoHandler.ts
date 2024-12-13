@@ -8,6 +8,7 @@ import { type Request, type Response } from 'express'
 import challengeUtils = require('../lib/challengeUtils')
 import config from 'config'
 import * as utils from '../lib/utils'
+import rateLimit = require('express-rate-limit')
 
 const pug = require('pug')
 const challenges = require('../data/datacache').challenges
@@ -15,7 +16,12 @@ const themes = require('../views/themes/themes').themes
 const Entities = require('html-entities').AllHtmlEntities
 const entities = new Entities()
 
-exports.getVideo = () => {
+const videoRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
+});
+
+exports.getVideo = videoRateLimiter, () => {
   return (req: Request, res: Response) => {
     const path = videoPath()
     const stat = fs.statSync(path)
@@ -48,7 +54,7 @@ exports.getVideo = () => {
 }
 
 exports.promotionVideo = () => {
-  return (req: Request, res: Response) => {
+  return videoRateLimiter, (req: Request, res: Response) => {
     fs.readFile('views/promotionVideo.pug', function (err, buf) {
       if (err != null) throw err
       let template = buf.toString()

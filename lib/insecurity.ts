@@ -13,6 +13,7 @@ import jws from 'jws'
 import sanitizeHtmlLib from 'sanitize-html'
 import sanitizeFilenameLib from 'sanitize-filename'
 import * as utils from './utils'
+import rateLimit from 'express-rate-limit'
 
 /* jslint node: true */
 // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
@@ -73,11 +74,11 @@ export const authenticatedUsers: IAuthenticatedUsers = {
   tokenMap: {},
   idMap: {},
   put: function (token: string, user: {
-    status: string
-    data: UserModel
-    iat: number
-    exp: number
-    bid: number
+  status: string
+  data: UserModel
+  iat: number
+  exp: number
+  bid: number
   }) {
     this.tokenMap[token] = user
     this.idMap[user.data.id] = token
@@ -159,8 +160,13 @@ export const deluxeToken = (email: string) => {
   return hmac.update(email + roles.deluxe).digest('hex')
 }
 
+const accountingRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
+});
+
 export const isAccounting = () => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return accountingRateLimiter, (req: Request, res: Response, next: NextFunction) => {
     const decodedToken = verify(utils.jwtFrom(req)) && decode(utils.jwtFrom(req))
     if (decodedToken?.data?.role === roles.accounting) {
       next()
@@ -181,7 +187,7 @@ export const isCustomer = (req: Request) => {
 }
 
 export const appendUserId = () => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return accountingRateLimiter, (req: Request, res: Response, next: NextFunction) => {
     try {
       req.body.UserId = authenticatedUsers.tokenMap[utils.jwtFrom(req)].data.id
       next()
@@ -191,17 +197,19 @@ export const appendUserId = () => {
   }
 }
 
-export const updateAuthenticatedUsers = () => (req: Request, res: Response, next: NextFunction) => {
-  const token = req.cookies.token || utils.jwtFrom(req)
-  if (token) {
-    jwt.verify(token, publicKey, (err: Error | null, decoded: any) => {
-      if (err === null) {
-        if (authenticatedUsers.get(token) === undefined) {
-          authenticatedUsers.put(token, decoded)
-          res.cookie('token', token)
+export const updateAuthenticatedUsers = () => {
+  return accountingRateLimiter, (req: Request, res: Response, next: NextFunction) => {
+    const token = req.cookies.token || utils.jwtFrom(req)
+    if (token) {
+      jwt.verify(token, publicKey, (err: Error | null, decoded: any) => {
+        if (err === null) {
+          if (authenticatedUsers.get(token) === undefined) {
+            authenticatedUsers.put(token, decoded)
+            res.cookie('token', token)
+          }
         }
-      }
-    })
+      })
+    }
+    next()
   }
-  next()
 }

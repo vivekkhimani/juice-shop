@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2023 Bjoern Kimminich & the OWASP Juice Shop contributors.
+ * Copyright (c)2014-2023 Bjoern Kimminich & the OWASP Juice Shop contributors.
  * SPDX-License-Identifier: MIT
  */
 
@@ -7,6 +7,7 @@ import utils = require('../lib/utils')
 import challengeUtils = require('../lib/challengeUtils')
 import { type Request, type Response, type NextFunction } from 'express'
 import { type Review } from 'data/types'
+import rateLimit = require('express-rate-limit')
 
 const challenges = require('../data/datacache').challenges
 const security = require('../lib/insecurity')
@@ -25,8 +26,13 @@ global.sleep = (time: number) => {
   }
 }
 
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
+})
+
 module.exports = function productReviews () {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return [limiter, (req: Request, res: Response, next: NextFunction) => {
     const id = utils.disableOnContainerEnv() ? Number(req.params.id) : req.params.id
 
     // Measure how long the query takes, to check if there was a nosql dos attack
@@ -44,5 +50,5 @@ module.exports = function productReviews () {
     }, () => {
       res.status(400).json({ error: 'Wrong Params' })
     })
-  }
+  }]
 }

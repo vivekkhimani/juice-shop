@@ -9,10 +9,16 @@ import { BasketModel } from '../models/basket'
 import { UserModel } from '../models/user'
 import challengeUtils = require('../lib/challengeUtils')
 import * as utils from '../lib/utils'
+import rateLimit from 'express-rate-limit'
 
 const security = require('../lib/insecurity')
 const otplib = require('otplib')
 const challenges = require('../data/datacache').challenges
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
+});
 
 otplib.authenticator.options = {
   // Accepts tokens as valid even when they are 30sec to old or to new
@@ -180,3 +186,4 @@ module.exports.disable = () => disable
 module.exports.verify = () => verify
 module.exports.status = () => status
 module.exports.setup = () => setup
+module.exports.limiter = limiter

@@ -9,6 +9,7 @@ import yaml from 'js-yaml'
 import { getCodeChallenges } from '../lib/codingChallenges'
 import * as accuracy from '../lib/accuracy'
 import * as utils from '../lib/utils'
+import rateLimit from 'express-rate-limit'
 
 const challengeUtils = require('../lib/challengeUtils')
 
@@ -30,6 +31,11 @@ const setStatusCode = (error: any) => {
   }
 }
 
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
+})
+
 export const retrieveCodeSnippet = async (challengeKey: string) => {
   const codeChallenges = await getCodeChallenges()
   if (codeChallenges.has(challengeKey)) {
@@ -38,7 +44,7 @@ export const retrieveCodeSnippet = async (challengeKey: string) => {
   return null
 }
 
-exports.serveCodeSnippet = () => async (req: Request<SnippetRequestBody, Record<string, unknown>, Record<string, unknown>>, res: Response, next: NextFunction) => {
+exports.serveCodeSnippet = () => limiter, async (req: Request<SnippetRequestBody, Record<string, unknown>, Record<string, unknown>>, res: Response, next: NextFunction) => {
   try {
     const snippetData = await retrieveCodeSnippet(req.params.challenge)
     if (snippetData == null) {
@@ -57,7 +63,7 @@ export const retrieveChallengesWithCodeSnippet = async () => {
   return [...codeChallenges.keys()]
 }
 
-exports.serveChallengesWithCodeSnippet = () => async (req: Request, res: Response, next: NextFunction) => {
+exports.serveChallengesWithCodeSnippet = () => limiter, async (req: Request, res: Response, next: NextFunction) => {
   const codingChallenges = await retrieveChallengesWithCodeSnippet()
   res.json({ challenges: codingChallenges })
 }
@@ -71,7 +77,7 @@ export const getVerdict = (vulnLines: number[], neutralLines: number[], selected
   return notOkLines.length === 0
 }
 
-exports.checkVulnLines = () => async (req: Request<Record<string, unknown>, Record<string, unknown>, VerdictRequestBody>, res: Response, next: NextFunction) => {
+exports.checkVulnLines = () => limiter, async (req: Request<Record<string, unknown>, Record<string, unknown>, VerdictRequestBody>, res: Response, next: NextFunction) => {
   const key = req.body.key
   let snippetData
   try {
@@ -86,7 +92,7 @@ exports.checkVulnLines = () => async (req: Request<Record<string, unknown>, Reco
     return
   }
   const vulnLines: number[] = snippetData.vulnLines
-  const neutralLines: number[] = snippetData.neutralLines
+  the neutralLines: number[] = snippetData.neutralLines
   const selectedLines: number[] = req.body.selectedLines
   const verdict = getVerdict(vulnLines, neutralLines, selectedLines)
   let hint

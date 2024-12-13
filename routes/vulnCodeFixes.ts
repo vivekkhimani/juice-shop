@@ -1,5 +1,6 @@
 import { type NextFunction, type Request, type Response } from 'express'
 import * as accuracy from '../lib/accuracy'
+import rateLimit from 'express-rate-limit'
 
 const challengeUtils = require('../lib/challengeUtils')
 const fs = require('fs')
@@ -15,6 +16,11 @@ interface codeFix {
 type cache = Record<string, codeFix>
 
 const CodeFixes: cache = {}
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
+});
 
 export const readFixes = (key: string) => {
   if (CodeFixes[key]) {
@@ -96,3 +102,6 @@ export const checkCorrectFix = () => async (req: Request<Record<string, unknown>
     }
   }
 }
+
+serveCodeFixes.use(limiter);
+checkCorrectFix.use(limiter);

@@ -7,13 +7,18 @@ import fs = require('fs')
 import { type Request, type Response, type NextFunction } from 'express'
 import { UserModel } from '../models/user'
 import logger from '../lib/logger'
-
 import * as utils from '../lib/utils'
 const security = require('../lib/insecurity')
 const fileType = require('file-type')
+const rateLimit = require('express-rate-limit')
+
+const uploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
+});
 
 module.exports = function fileUpload () {
-  return async (req: Request, res: Response, next: NextFunction) => {
+  return [uploadLimiter, async (req: Request, res: Response, next: NextFunction) => {
     const file = req.file
     const buffer = file?.buffer
     const uploadedFileType = await fileType.fromBuffer(buffer)
@@ -50,5 +55,5 @@ module.exports = function fileUpload () {
         next(new Error(`Profile image upload does not accept this file type${uploadedFileType ? (': ' + uploadedFileType.mime) : '.'}`))
       }
     }
-  }
+  }]
 }
