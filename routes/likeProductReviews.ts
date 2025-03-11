@@ -13,7 +13,7 @@ const security = require('../lib/insecurity')
 
 module.exports = function productReviews () {
   return (req: Request, res: Response, next: NextFunction) => {
-    const id = req.body.id
+    const id = req.body.id.toString()
     const user = security.authenticatedUsers.from(req)
     db.reviews.findOne({ _id: id }).then((review: Review) => {
       if (!review) {
@@ -22,7 +22,7 @@ module.exports = function productReviews () {
         const likedBy = review.likedBy
         if (!likedBy.includes(user.data.email)) {
           db.reviews.update(
-            { _id: id },
+            { _id: id.toString() },
             { $inc: { likesCount: 1 } }
           ).then(
             () => {
@@ -39,7 +39,7 @@ module.exports = function productReviews () {
                   }
                   challengeUtils.solveIf(challenges.timingAttackChallenge, () => { return count > 2 })
                   db.reviews.update(
-                    { _id: id },
+                    { _id: id.toString() }
                     { $set: { likedBy } }
                   ).then(
                     (result: any) => {
