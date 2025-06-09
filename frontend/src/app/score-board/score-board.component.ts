@@ -14,6 +14,16 @@ import { filterChallenges } from './helpers/challenge-filtering'
 import { SocketIoService } from '../Services/socket-io.service'
 import { type EnrichedChallenge } from './types/EnrichedChallenge'
 import { sortChallenges } from './helpers/challenge-sorting'
+import { TranslateModule } from '@ngx-translate/core'
+import { ChallengeCardComponent } from './components/challenge-card/challenge-card.component'
+import { TutorialModeWarningComponent } from './components/tutorial-mode-warning/tutorial-mode-warning.component'
+import { ChallengesUnavailableWarningComponent } from './components/challenges-unavailable-warning/challenges-unavailable-warning.component'
+import { MatProgressSpinner } from '@angular/material/progress-spinner'
+import { FilterSettingsComponent } from './components/filter-settings/filter-settings.component'
+import { NgIf, NgFor, NgClass } from '@angular/common'
+import { DifficultyOverviewScoreCardComponent } from './components/difficulty-overview-score-card/difficulty-overview-score-card.component'
+import { CodingChallengeProgressScoreCardComponent } from './components/coding-challenge-progress-score-card/coding-challenge-progress-score-card.component'
+import { HackingChallengeProgressScoreCardComponent } from './components/hacking-challenge-progress-score-card/hacking-challenge-progress-score-card.component'
 
 interface ChallengeSolvedWebsocket {
   key: string
@@ -31,7 +41,8 @@ interface CodeChallengeSolvedWebsocket {
 @Component({
   selector: 'app-score-board',
   templateUrl: './score-board.component.html',
-  styleUrls: ['./score-board.component.scss']
+  styleUrls: ['./score-board.component.scss'],
+  imports: [HackingChallengeProgressScoreCardComponent, CodingChallengeProgressScoreCardComponent, DifficultyOverviewScoreCardComponent, NgIf, FilterSettingsComponent, MatProgressSpinner, ChallengesUnavailableWarningComponent, TutorialModeWarningComponent, NgFor, ChallengeCardComponent, NgClass, TranslateModule]
 })
 export class ScoreBoardComponent implements OnInit, OnDestroy {
   public allChallenges: EnrichedChallenge[] = []
@@ -55,7 +66,7 @@ export class ScoreBoardComponent implements OnInit, OnDestroy {
     private readonly route: ActivatedRoute
   ) { }
 
-  ngOnInit () {
+  ngOnInit (): void {
     const dataLoaderSubscription = combineLatest([
       this.challengeService.find({ sort: 'name' }),
       this.codeSnippetService.challenges(),
@@ -79,9 +90,6 @@ export class ScoreBoardComponent implements OnInit, OnDestroy {
     this.subscriptions.push(dataLoaderSubscription)
 
     const routerSubscription = this.route.queryParams.subscribe((queryParams) => {
-      // Fix to keep direct links to challenges stable for OpenCRE and others
-      if (this.rewriteLegacyChallengeDirectLink(queryParams)) return
-
       this.filterSetting = fromQueryParams(queryParams)
       this.filterAndUpdateChallenges()
     })
@@ -181,22 +189,5 @@ export class ScoreBoardComponent implements OnInit, OnDestroy {
   async repeatChallengeNotification (challengeKey: string) {
     const challenge = this.allChallenges.find((challenge) => challenge.key === challengeKey)
     await this.challengeService.repeatNotification(encodeURIComponent(challenge.name)).toPromise()
-  }
-
-  rewriteLegacyChallengeDirectLink (queryParams): boolean {
-    if (queryParams.challenge) {
-      console.warn('The "challenge=<name>" URL query parameter is deprecated! You should  use "searchQuery=<name>" instead to link to a challenge directly. See https://pwning.owasp-juice.shop/companion-guide/latest/part4/integration.html#_generating_links_to_juice_shop for details.')
-      if (!queryParams.searchQuery) {
-        this.router.navigate([], {
-          queryParams: {
-            ...queryParams,
-            challenge: null,
-            searchQuery: queryParams.challenge
-          }
-        })
-        return true
-      }
-    }
-    return false
   }
 }
