@@ -22,7 +22,7 @@ export function likeProductReviews () {
     }
 
     try {
-      const review = await db.reviewsCollection.findOne({ _id: id })
+      const review = await db.reviewsCollection.findOne({ _id: id.toString() })
       if (!review) {
         return res.status(404).json({ error: 'Not found' })
       }
@@ -40,7 +40,7 @@ export function likeProductReviews () {
       // Artificial wait for timing attack challenge
       await sleep(150)
       try {
-        const updatedReview: Review = await db.reviewsCollection.findOne({ _id: id })
+        const updatedReview: Review = await db.reviewsCollection.findOne({ _id: id.toString() })
         const updatedLikedBy = updatedReview.likedBy
         updatedLikedBy.push(user.data.email)
 
@@ -48,7 +48,7 @@ export function likeProductReviews () {
         challengeUtils.solveIf(challenges.timingAttackChallenge, () => count > 2)
 
         const result = await db.reviewsCollection.update(
-          { _id: id },
+          { _id: id.toString().toString() }
           { $set: { likedBy: updatedLikedBy } }
         )
         res.json(result)
